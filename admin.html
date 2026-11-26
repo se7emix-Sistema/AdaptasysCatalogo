@@ -36,12 +36,15 @@ nav .bd{position:absolute;top:3px;right:calc(50% - 22px);background:var(--rd);co
 .btn{width:100%;margin-top:14px;min-height:48px;border:0;border-radius:12px;background:var(--ac);color:#fff;font-weight:700;font-size:16px;cursor:pointer}
 .err{color:var(--rd);font-size:14px;min-height:20px;margin-top:8px}
 .bar{height:8px;border-radius:5px;background:var(--ln);overflow:hidden;margin-top:4px}.bar i{display:block;height:100%;background:var(--ac);border-radius:5px}
+.acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.ab{flex:1;min-width:110px;min-height:44px;border:1px solid var(--bd);background:var(--card);border-radius:11px;font-weight:700;font-size:14.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--tx)}.ab.p{background:var(--ac);border-color:var(--ac);color:#fff}
+.tp{cursor:pointer}.lb{display:block;font-size:13px;color:var(--mu);font-weight:600;margin:8px 0 4px}
+#fl{display:none;position:fixed;inset:0;z-index:20}#fl .fv{position:absolute;inset:0;background:rgba(0,0,0,.45)}#fl .fc{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:18px 18px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));max-width:760px;margin:0 auto;max-height:85vh;overflow:auto}
 </style></head><body>
 <div id="root"></div>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
-/* PAINEL DA LOJA · SÓ CONSULTA
+/* PAINEL DA LOJA
    Mostra, de qualquer lugar, o que o caixa enviou para o sistema online. Nada é alterado aqui:
    produtos, preços, estoque, pedidos e ajustes são mudados só na Gestão do computador do caixa. */
 const MO=window.MO_CFG||{}, SB_URL=MO.sbUrl||'', SB_KEY=MO.sbKey||'';  /* config.js: Supabase DESTA empresa */
@@ -72,7 +75,7 @@ async function init(){
   shell();await carregar();setInterval(()=>{if(!document.hidden)carregar()},60000);
 }
 function telaLogin(msg){
-  $('#root').innerHTML=`<div class="login"><img src="${esc(EMP.logo||'logo.png')}" alt="" onerror="this.style.display='none'"><h2 style="margin:10px 0 4px">${esc(EMP.n)}</h2><p class="mu" style="margin:0">Painel da loja · só consulta</p>
+  $('#root').innerHTML=`<div class="login"><img src="${esc(EMP.logo||'logo.png')}" alt="" onerror="this.style.display='none'"><h2 style="margin:10px 0 4px">${esc(EMP.n)}</h2><p class="mu" style="margin:0">Painel da loja</p>
   <input id="le" placeholder="WhatsApp ou e-mail da loja" autocomplete="username"><input id="lp" type="password" placeholder="Senha" autocomplete="current-password">
   <button class="btn" onclick="entrar()">Entrar</button><div class="err" id="lerr">${esc(msg||'')}</div></div>`;
   $('#lp').onkeydown=e=>{if(e.key=='Enter')entrar()};
@@ -108,7 +111,7 @@ async function carregar(){
     D.contas=c.error?null:(c.data||[]).map(r=>r.data).filter(x=>x&&!x.del);
     D.lotes=l.error?null:(l.data||[]).map(r=>r.data).filter(x=>x&&x.st=='ativo');
     if(cf.data&&cf.data.data){EMP={...EMP,...cf.data.data};try{localStorage.setItem('mkcfg',JSON.stringify(EMP))}catch(e){}}
-    carregou=Date.now();$('#upd').textContent='Atualizado às '+hm(carregou)+' · só consulta';
+    carregou=Date.now();$('#upd').textContent='Atualizado às '+hm(carregou)+'';
   }catch(e){$('#upd').textContent='Não foi possível atualizar ('+(e.message||e)+')'}
   if(rf)rf.classList.remove('gira');
   badges();draw();
@@ -123,7 +126,7 @@ function badges(){
 }
 const baixo=p=>p.est!==null&&(p.est<=0||(p.min!=null&&p.est<=p.min));
 function draw(){({hoje:vHoje,ped:vPed,est:vEst,cont:vCont,val:vVal})[tab]()}
-const AVISO='<div class="aviso">👀 <b>Só consulta.</b> Para mudar preços, estoque, pedidos ou ajustes, use a <b>Gestão no computador do caixa</b>. Os dados chegam aqui quando o caixa está com internet.</div>';
+const AVISO='';
 
 function vHoje(){
   const h=HOJE(),o=ONTEM(),V=vendas(),vd=d=>V.filter(x=>dia(x.fat.date)==d),soma=l=>l.reduce((s,x)=>s+(+x.total||0),0);
@@ -141,25 +144,40 @@ function vHoje(){
   <p class="mu" style="text-align:center;font-size:13px"><a href="#" onclick="sair();return false">Sair da conta</a></p>`;
 }
 function vPed(){
-  const ST={novo:['Novo','wn'],conf:['Aceito','ac'],ent:'Entregue',canc:['Cancelado','rd']};
+  const ST={novo:['Novo','wn'],conf:['Aceito','ac'],ent:['Entregue','ok'],canc:['Cancelado','rd'],pagar:['Aguardando pagamento','wn']};
   const all=D.orders.filter(o=>o.canal!='balcao'&&Date.parse(o.date)>Date.now()-3*864e5).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
   const F=[['abertos','Para atender',o=>['novo','conf'].includes(stOf(o))],['ent','Entregues',o=>stOf(o)=='ent'],['canc','Cancelados',o=>stOf(o)=='canc'],['todos','Todos',()=>true]];
   const l=all.filter((F.find(x=>x[0]==pf)||F[0])[2]);
-  $('#v').innerHTML=AVISO+`<div class="chips">${F.map(([k,t,f])=>`<button class="${pf==k?'on':''}" onclick="pf='${k}';vPed()">${t} (${all.filter(f).length})</button>`).join('')}</div>`
-   +(l.map(o=>{const k=stOf(o),s=ST[k]||['',''],t=Array.isArray(s)?s:[s,'ok'];return `<div class="card"><div style="display:flex;justify-content:space-between;gap:10px"><div><b>#${esc(o.id.slice(-4).toUpperCase())} · ${esc(o.cn||'')}</b> <span class="tag ${t[1]}">${t[0]}</span>${o.fat?' <span class="tag ok">Faturado</span>':''}<br><small class="mu">${new Date(o.date).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})} · ${o.ent=='retirada'?'Retirada':'Entrega'+(o.bairro?' · '+esc(o.bairro):'')}</small></div><b>${R(o.total)}</b></div>
-     <div class="mu" style="margin-top:6px;font-size:14px">${(o.items||[]).map(i=>`${N(i.q)}× ${esc(i.n)}`).join(' · ')}</div>${o.canc&&o.canc.motivo?`<div class="neg" style="font-size:13.5px;margin-top:4px">Motivo: ${esc(o.canc.motivo)}</div>`:''}</div>`}).join('')||'<div class="card vz">Nenhum pedido nesta lista.</div>');
+  const zap=(o,t)=>{const d=digits(o.ph);return d?`https://wa.me/${d.length<=11?'55':''}${d}?text=${encodeURIComponent(t)}`:''};
+  $('#v').innerHTML=`<div class="chips">${F.map(([k,t,f])=>`<button class="${pf==k?'on':''}" onclick="pf='${k}';vPed()">${t} (${all.filter(f).length})</button>`).join('')}</div>`
+   +(l.map(o=>{const k=stOf(o),t=ST[k]||['',''],id=esc(o.id);
+     const msg=k=='novo'?`Olá, ${o.cn||''}! Recebemos seu pedido no ${EMP.n}. Já estamos separando.`:k=='conf'?`Olá, ${o.cn||''}! Seu pedido do ${EMP.n} ${o.ent=='retirada'?'está pronto para retirar':'saiu para entrega'}.`:`Olá, ${o.cn||''}! Aqui é do ${EMP.n}.`;
+     const z=zap(o,msg);
+     const acao=k=='novo'?`<button class="ab p" onclick="pedSt('${id}','conf')">Aceitar</button>`:k=='conf'?`<button class="ab p" onclick="pedSt('${id}','ent')">Marcar como entregue</button><button class="ab" onclick="pedSt('${id}','novo')">Voltar para novo</button>`:'';
+     return `<div class="card"><div style="display:flex;justify-content:space-between;gap:10px"><div><b>#${esc(o.id.slice(-4).toUpperCase())} · ${esc(o.cn||'')}</b> <span class="tag ${t[1]}">${t[0]}</span>${o.fat?' <span class="tag ok">Faturado</span>':''}</div><b>${R(o.total)}</b></div>
+     <div class="mu" style="margin-top:6px;font-size:14px">${(o.items||[]).map(i=>`${N(i.q)}× ${esc(i.n)}`).join(' · ')}</div>
+     <div class="mu" style="margin-top:4px;font-size:13px">${o.ent=='retirada'?'Retirar na loja':'Entrega: '+esc(o.addr||'')}${o.bairro?' · '+esc(o.bairro):''} · ${esc(o.pay||'')}${o.cash>0?' (troco p/ '+R(o.cash)+')':''}</div>
+     ${o.obs?`<div style="margin-top:4px;font-size:13.5px">📝 ${esc(o.obs)}</div>`:''}${o.canc&&o.canc.motivo?`<div class="neg" style="font-size:13.5px;margin-top:4px">Motivo: ${esc(o.canc.motivo)}</div>`:''}
+     <div class="acoes">${acao}${z?`<a class="ab" target="_blank" rel="noopener" href="${z}">WhatsApp</a>`:''}</div></div>`}).join('')||'<div class="card vz">Nenhum pedido nesta lista.</div>');
 }
+async function pedSt(id,st){
+  const o=D.orders.find(x=>x.id==id);if(!o)return;
+  const {error}=await sb.rpc('pdv_pedido_status',{p_id:id,p_st:st});
+  if(error)return aviso('Não deu certo: '+(error.message||error));
+  o.st=st;o.done=st=='ent';aviso(st=='conf'?'Pedido aceito.':st=='ent'?'Pedido entregue.':'Pedido atualizado.');badges();draw();
+}
+function aviso(t){let e=$('#toast');if(!e){e=document.createElement('div');e.id='toast';e.style.cssText='position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#1B2433;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:30;max-width:90%;text-align:center';document.body.appendChild(e)}e.textContent=t;e.style.display='block';clearTimeout(aviso.t);aviso.t=setTimeout(()=>e.style.display='none',3500)}
 function vEst(){
   const F=[['baixo','Estoque baixo',baixo],['zero','Zerados',p=>p.est!==null&&p.est<=0],['todos','Todos',()=>true]];
   const t=eq.trim().toLowerCase(),l=D.products.filter((F.find(x=>x[0]==ef)||F[0])[2]).filter(p=>!t||String(p.n).toLowerCase().includes(t));
   $('#v').innerHTML=AVISO+`<input class="q" id="eq" placeholder="🔍 Buscar produto" value="${esc(eq)}" oninput="eq=this.value;vEst();const i=$('#eq');i.focus();i.setSelectionRange(i.value.length,i.value.length)"><div class="chips">${F.map(([k,tt,f])=>`<button class="${ef==k?'on':''}" onclick="ef='${k}';vEst()">${tt} (${D.products.filter(f).length})</button>`).join('')}</div>
-  <div class="card">${l.slice(0,300).map(p=>`<div class="ln"><span>${esc(p.n)}<small>${R(p.p)}${p.c?' · '+esc(p.c):''}</small></span><b class="${p.est!==null&&p.est<=0?'neg':''}">${p.est===null?'<span class="mu">sem controle</span>':N(p.est)}${p.min!=null&&p.est!==null?`<small style="text-align:right">mín. ${N(p.min)}</small>`:''}</b></div>`).join('')||'<p class="vz">Nada nesta lista.</p>'}${l.length>300?`<p class="vz">Mostrando 300 de ${l.length}. Use a busca.</p>`:''}</div>`;
+  <div class="card">${l.slice(0,300).map(p=>`<div class="ln tp" onclick="editProd('${esc(p.id)}')"><span>${esc(p.n)}<small>${R(p.p)}${p.c?' · '+esc(p.c):''}</small></span><b class="${p.est!==null&&p.est<=0?'neg':''}">${p.est===null?'<span class="mu">sem controle</span>':N(p.est)}${p.min!=null&&p.est!==null?`<small style="text-align:right">mín. ${N(p.min)}</small>`:''}</b></div>`).join('')||'<p class="vz">Nada nesta lista.</p>'}${l.length>300?`<p class="vz">Mostrando 300 de ${l.length}. Use a busca.</p>`:''}</div>`;
 }
 function vCont(){
   if(D.contas===null)return $('#v').innerHTML=AVISO+'<div class="card vz">As contas a pagar aparecem aqui depois que o caixa for atualizado e o supabase.sql novo for rodado.</div>';
   const h=HOJE(),ab=D.contas.filter(c=>!c.pago).sort((a,b)=>String(a.venc).localeCompare(String(b.venc))),soma=l=>l.reduce((s,c)=>s+(+c.valor||0),0);
   const venc=ab.filter(c=>c.venc<h),hj=ab.filter(c=>c.venc==h),s7=ab.filter(c=>c.venc>h&&c.venc<=dia(Date.now()+7*864e5));
-  const row=c=>{const n=Math.round((Date.parse(c.venc)-Date.parse(h))/864e5);return `<div class="ln"><span><b style="font-weight:600">${esc(c.forn||'')}</b><small>${dbr(c.venc)} · ${esc(c.doc||c.cat||'')}</small></span><b>${R(c.valor)}<small style="text-align:right">${n<0?`<span class="tag rd">vencida há ${-n}d</span>`:n==0?'<span class="tag wn">hoje</span>':`em ${n} dia(s)`}</small></b></div>`};
+  const row=c=>{const n=Math.round((Date.parse(c.venc)-Date.parse(h))/864e5);return `<div class="ln" style="border-bottom:0"><span><b style="font-weight:600">${esc(c.forn||'')}</b><small>${dbr(c.venc)} · ${esc(c.doc||c.cat||'')}</small></span><b>${R(c.valor)}<small style="text-align:right">${n<0?`<span class="tag rd">vencida há ${-n}d</span>`:n==0?'<span class="tag wn">hoje</span>':`em ${n} dia(s)`}</small></b></div><div class="acoes" style="margin:0 0 6px"><button class="ab p" onclick="pagarConta('${esc(c.id)}')">Marcar como paga</button></div>`};
   $('#v').innerHTML=AVISO+`<div class="kp"><div class="card"><small>Vencidas</small><b class="${venc.length?'neg':''}">${R(soma(venc))}</b><span>${venc.length} conta(s)</span></div><div class="card"><small>Vencem hoje</small><b>${R(soma(hj))}</b><span>${hj.length} conta(s)</span></div><div class="card"><small>Próximos 7 dias</small><b>${R(soma(s7))}</b><span>${s7.length} conta(s)</span></div><div class="card"><small>Total em aberto</small><b>${R(soma(ab))}</b><span>${ab.length} conta(s)</span></div></div>
   <div class="card"><h2>A pagar</h2>${ab.slice(0,200).map(row).join('')||'<p class="vz">Nenhuma conta em aberto. 🎉</p>'}</div>`;
 }
@@ -167,6 +185,44 @@ function vVal(){
   if(D.lotes===null)return $('#v').innerHTML=AVISO+'<div class="card vz">A validade aparece aqui depois que o caixa for atualizado e o supabase.sql novo for rodado.</div>';
   const h=HOJE(),l=D.lotes.slice().sort((a,b)=>String(a.val).localeCompare(String(b.val))),pn=id=>(D.products.find(p=>p.id==id)||{}).n;
   $('#v').innerHTML=AVISO+`<div class="card"><h2>Validade dos produtos</h2>${l.map(x=>{const n=Math.round((Date.parse(x.val)-Date.parse(h))/864e5);return `<div class="ln"><span>${esc(pn(x.pid)||x.n||'')}<small>${esc(x.doc||'')}</small></span><b>${dbr(x.val)}<small style="text-align:right">${n<0?`<span class="tag rd">vencido há ${-n}d</span>`:n<=7?`<span class="tag wn">faltam ${n}d</span>`:`faltam ${n} dias`}</small></b></div>`}).join('')||'<p class="vz">Nenhuma validade lançada.</p>'}</div>`;
+}
+
+function folha(h){let f=$('#fl');if(!f){f=document.createElement('div');f.id='fl';document.body.appendChild(f)}
+  f.innerHTML=`<div class="fv" onclick="fechaF()"></div><div class="fc">${h}</div>`;f.style.display='block'}
+function fechaF(){const f=$('#fl');if(f)f.style.display='none'}
+function editProd(id){
+  const p=D.products.find(x=>x.id==id);if(!p)return;
+  folha(`<h2 style="margin:0 0 4px">${esc(p.n)}</h2><p class="mu" style="margin:0 0 10px">${p.est===null?'Sem controle de estoque':'Estoque atual: '+N(p.est)}</p>
+  <label class="lb">Preço (R$)</label><input class="q" id="ep" inputmode="decimal" value="${String(p.p).replace('.',',')}">
+  <label class="lb">Estoque mínimo (avisar abaixo disso)</label><input class="q" id="em" inputmode="decimal" value="${p.min==null?'':String(p.min).replace('.',',')}">
+  ${p.est===null?'':`<label class="lb">Ajustar estoque: some ou tire (ex.: 10 ou -3)</label><input class="q" id="ea" inputmode="decimal" placeholder="0">`}
+  <div class="acoes"><button class="ab p" onclick="salvaProd('${esc(id)}')">Salvar</button><button class="ab" onclick="fechaF()">Cancelar</button></div>`);
+}
+const num=v=>{const n=parseFloat(String(v).replace(/\./g,'').replace(',','.'));return isNaN(n)?NaN:n};
+async function salvaProd(id){
+  const p=D.products.find(x=>x.id==id);if(!p)return;
+  const pr=num($('#ep').value),mn=$('#em').value.trim()===''?null:num($('#em').value),aj=$('#ea')&&$('#ea').value.trim()?num($('#ea').value):0;
+  if(!(pr>=0))return aviso('Preço inválido.');if(mn!==null&&!(mn>=0))return aviso('Mínimo inválido.');if(isNaN(aj))return aviso('Ajuste inválido.');
+  const patch={};if(pr!==p.p)patch.p=Math.round(pr*100)/100;if(mn!==p.min)patch.min=mn;
+  if(Object.keys(patch).length){const {error}=await sb.rpc('pdv_salvar_produto',{p_id:id,p_data:patch});if(error)return aviso('Não deu certo: '+(error.message||error));Object.assign(p,patch)}
+  if(aj){const novo=Math.max(0,Math.round(((p.est||0)+aj)*1000)/1000);
+    const mov={id:crypto.randomUUID(),date:new Date().toISOString(),pid:id,n:p.n,tipo:'ajuste',q:novo-(p.est||0),ant:p.est||0,est:novo,doc:'Ajuste pelo painel online',obs:'',op:'Painel online'};
+    const {error}=await sb.rpc('pdv_mov_estoque',{p_mov:mov});if(error)return aviso('Estoque não deu certo: '+(error.message||error));p.est=novo}
+  fechaF();aviso('Produto atualizado.');badges();draw();
+}
+function pagarConta(id){
+  const c=(D.contas||[]).find(x=>x.id==id);if(!c)return;
+  folha(`<h2 style="margin:0 0 4px">Pagar ${esc(c.forn||'conta')}</h2><p class="mu" style="margin:0 0 10px">${R(c.valor)} · vence ${dbr(c.venc)}</p>
+  <label class="lb">Forma de pagamento</label><select class="q" id="cf"><option>Pix</option><option>Transferência</option><option>Cartão</option><option>Boleto / banco</option><option>Dinheiro</option><option>Outro</option></select>
+  <div class="acoes"><button class="ab p" onclick="okConta('${esc(id)}')">Confirmar pagamento</button><button class="ab" onclick="fechaF()">Cancelar</button></div>
+  <p class="mu" style="font-size:12.5px;margin:8px 0 0">Registra a conta como paga. Não mexe no caixa do dia.</p>`);
+}
+async function okConta(id){
+  const c=(D.contas||[]).find(x=>x.id==id);if(!c)return;
+  const pago={data:HOJE(),valor:+c.valor||0,forma:$('#cf').value,por:'Painel online'};
+  const {error}=await sb.rpc('pdv_merge',{p_tab:'contas',p_id:id,p_data:{pago}});
+  if(error)return aviso('Não deu certo: '+(error.message||error));
+  c.pago=pago;fechaF();aviso('Conta marcada como paga.');badges();draw();
 }
 init();
 </script></body></html>
